@@ -254,7 +254,7 @@ class Ping(object):
 
         self.seqNumber = 0
         self.startTime = default_timer()
-        self.queue = asyncio.Queue(loop=self.loop)
+        self.queue = asyncio.Queue()
 
         global _next_id
         self.ID = _next_id
@@ -325,7 +325,7 @@ class Ping(object):
             timeout = self.timeout
 
         if timeout is not None:
-            recv = asyncio.wait_for(recv, timeout, loop=self.loop)
+            recv = asyncio.wait_for(recv, timeout)
 
         recv = await recv
         if isinstance(recv,Exception):
@@ -337,7 +337,7 @@ class Ping(object):
             host=self.resolve_host(iphSrcIP), seqNum=icmpSeqNumber,
             ttl=iphTTL, size=dataSize)
 
-        return delay
+        return delay, self.destIP
 
     async def pinged(self, recvTime,delay,host,seqNum,ttl,size):
         """Hook to catch a successful ping"""
@@ -369,8 +369,7 @@ class Ping(object):
             try:
                 recv = self.queue.get()
                 if delay1 is not None:
-                    recv = asyncio.wait_for(recv, delay1,
-                        loop=self.loop)
+                    recv = asyncio.wait_for(recv, delay1)
                 recv = await recv
                 if isinstance(recv,Exception): # error
                     raise recv
@@ -548,11 +547,12 @@ async def ping(dest_addr, timeout=10, **kw):
     @dest_addr: host name or IP address to ping.
     @timeout: maximum delay.
     """
+
     ping = Ping(dest_addr, **kw)
     await ping.init()
     res = ping.single()
     if timeout:
-        res = asyncio.wait_for(res, timeout, loop=ping.loop)
+        res = asyncio.wait_for(res, timeout)
     res = await res
     ping.close()
     return res
